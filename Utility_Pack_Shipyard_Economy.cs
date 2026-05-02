@@ -111,7 +111,6 @@ namespace Utility_Pack_Shipyard_Economy
 
                 // --- THE FIX: Maintain Position ---
                 int templateIndex = templateRow.GetSiblingIndex();
-                newRow.transform.SetSiblingIndex(templateIndex + 9);
 
                 var label = newRow.GetComponentInChildren<TextMeshProUGUI>();
                 if (label != null) label.text = "Express Shipyard (4x Cost)";
