@@ -10,7 +10,6 @@ using zip.lexy.tgame.simulation.trading;
 using zip.lexy.tgame.state;
 using zip.lexy.tgame.ui.settings;
 using zip.lexy.tgame.ui.shipyard;
-using zip.lexy.tgame.ui.widget.trader.townhall;
 
 namespace Utility_Pack_Shipyard_Economy
 {
@@ -53,43 +52,34 @@ namespace Utility_Pack_Shipyard_Economy
             [HarmonyPrefix]
             public static bool Prefix(List<string> goodsToTransact, Func<string, int> getRequiredAmount, TradingSimulationManager __instance, ref int __result)
             {
-                // 1. If mod is off, do nothing
+                // 1. If mod is off, let the game handle it normally
                 if (PlayerPrefs.GetInt("mod.shipyard.buy_all", 0) == 0) return true;
 
-                // 2. CHECK FOR MAYOR QUEST WINDOW
-                // If the player is currently in the "Give Goods" window for a Mayor, STOP.
-                // We want the game to take the actual items for quests.
-                var mayorWindow = UnityEngine.Object.FindObjectOfType<MayorQuestTradeConfirmationWindow>();
-                if (mayorWindow != null && mayorWindow.gameObject.activeInHierarchy)
-                {
-                    return true; // Let vanilla logic handle the quest (subtract items)
-                }
-
-                // 3. CHECK FOR SHIPYARD WINDOW
-                // Only apply the 4x gold cost if the Shipyard window is the one open.
-                var shipyardWindow = UnityEngine.Object.FindObjectOfType<zip.lexy.tgame.ui.shipyard.ShipyardBuildNewWindow>();
-                if (shipyardWindow == null || !shipyardWindow.gameObject.activeInHierarchy)
-                {
-                    return true; // Safety fallback: if we aren't in the shipyard, don't use Express logic
-                }
-
-                // 4. EXPRESS SHIPYARD LOGIC (Ship Building Only)
+                // 2. Get GameState (same way we did in the UI patch)
                 var gameState = Traverse.Create(__instance).Field("gameState").GetValue<GameState>();
                 if (gameState == null) gameState = UnityEngine.Object.FindObjectOfType<GameState>();
+                if (gameState == null) return true; // Fallback to original if we can't find state
 
                 int totalExpressCost = 0;
+
+                // 3. Calculate the cost exactly like the UI does
                 foreach (string goodId in goodsToTransact)
                 {
                     int required = getRequiredAmount(goodId);
                     if (gameState.corePrices.TryGetValue(goodId, out float basePrice))
                     {
+                        // Multiply by 4 for the Express fee
                         totalExpressCost += (int)(required * basePrice * 4);
                     }
                 }
 
+                // 4. Set the __result (this is the value the game will subtract from the balance)
                 __result = totalExpressCost;
-                MelonLoader.MelonLogger.Msg($"[Express Build] Deducted {totalExpressCost} gold for ship construction.");
-                return false; // Skip inventory check for ships
+
+                MelonLoader.MelonLogger.Msg($"[Express Build] Deducting {totalExpressCost} gold from player balance.");
+
+                // 5. Return false to skip the original code (which looks for items in the warehouse)
+                return false;
             }
         }
 
@@ -110,7 +100,8 @@ namespace Utility_Pack_Shipyard_Economy
                 newRow.name = "mod_shipyard_buy_all_row";
 
                 // --- THE FIX: Maintain Position ---
-                int templateIndex = templateRow.GetSiblingIndex();
+                //int templateIndex = templateRow.GetSiblingIndex();
+                //newRow.transform.SetSiblingIndex(templateIndex + 9);
 
                 var label = newRow.GetComponentInChildren<TextMeshProUGUI>();
                 if (label != null) label.text = "Express Shipyard (4x Cost)";
