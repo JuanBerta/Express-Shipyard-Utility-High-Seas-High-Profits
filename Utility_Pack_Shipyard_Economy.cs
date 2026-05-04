@@ -58,15 +58,17 @@ namespace Utility_Pack_Shipyard_Economy
 
                 // 2. Check if we are in the Mayor Quest Confirmation Window (since it also uses the trading system for item turn-ins)
                 var mayorWindow = UnityEngine.Object.FindObjectOfType<MayorQuestTradeConfirmationWindow>();
-                if (mayorWindow != null && mayorWindow.gameObject.activeInHierarchy)
+                if (mayorWindow != null && mayorWindow.visible)
                 {
+                    SendMelonLoggerMessage("Detected Mayor Quest Confirmation Window. Skipping Express Shipyard logic for this transaction.");
                     return true; // Let vanilla logic handle the quest (subtract items)
                 }
 
                 // 3. Check if we are in the Shipyard Build Window (safety check to avoid affecting other trades)
-                var shipyardWindow = UnityEngine.Object.FindObjectOfType<zip.lexy.tgame.ui.shipyard.ShipyardBuildNewWindow>();
+                var shipyardWindow = UnityEngine.Object.FindObjectOfType<ShipyardBuildNewWindow>();
                 if (shipyardWindow == null || !shipyardWindow.gameObject.activeInHierarchy)
                 {
+                    SendMelonLoggerMessage("Warning: Attempting to use Express Shipyard logic outside of the shipyard window. Defaulting to vanilla behavior.");
                     return true; // Safety fallback: if we aren't in the shipyard, don't use Express logic
                 }
 
@@ -91,7 +93,7 @@ namespace Utility_Pack_Shipyard_Economy
                 // 6. Set the __result (this is the value the game will subtract from the balance)
                 __result = totalExpressCost;
 
-                MelonLoader.MelonLogger.Msg($"[Express Build] Deducting {totalExpressCost} gold from player balance.");
+                SendMelonLoggerMessage($"Processed Express Shipyard Purchase. Total Cost: {totalExpressCost}. Goods: {string.Join(", ", goodsToTransact)}");
 
                 // 7. Return false to skip the original code (which looks for items in the warehouse)
                 return false;
@@ -135,7 +137,7 @@ namespace Utility_Pack_Shipyard_Economy
                     dropdown.onValueChanged.AddListener((int val) =>
                     {
                         PlayerPrefs.SetInt("mod.shipyard.buy_all", val);
-                        MelonLoader.MelonLogger.Msg($"Shipyard Mode: {(val == 1 ? "Express" : "Manual")}");
+                        SendMelonLoggerMessage($"Express Shipyard set to {(val == 1 ? "ON" : "OFF")}");
                     });
                 }
 
@@ -242,6 +244,11 @@ namespace Utility_Pack_Shipyard_Economy
                         tooltip.tooltipId = "shipyard-level-low"; // Example ID, check game for real one
                 }
             }
+        }
+
+        static void SendMelonLoggerMessage(string _message)
+        {
+            MelonLogger.Msg($"[Shipyard Economy Mod] {_message}");
         }
     }
 }
